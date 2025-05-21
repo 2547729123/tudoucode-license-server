@@ -1,0 +1,93 @@
+/* 码铃薯授权中心 · 后台管理界面样式 */
+
+.wrap h1 {
+    font-size: 2em;
+    margin-bottom: 20px;
+}
+
+.wrap h2 {
+    margin-top: 40px;
+    font-size: 1.5em;
+    border-left: 4px solid #0073aa;
+    padding-left: 10px;
+    color: #0073aa;
+}
+
+.form-table th {
+    width: 160px;
+    vertical-align: top;
+    text-align: left;
+    padding-top: 10px;
+    font-weight: 600;
+}
+
+.form-table input[type="text"],
+.form-table input[type="date"] {
+    width: 300px;
+    max-width: 100%;
+}
+
+table.widefat {
+    margin-top: 20px;
+}
+
+table.widefat td,
+table.widefat th {
+    padding: 10px;
+    vertical-align: middle;
+}
+
+table.widefat th {
+    background-color: #f1f1f1;
+    text-align: left;
+    font-weight: 600;
+}
+
+.button.button-danger {
+    background-color: #d63638;
+    border-color: #d63638;
+    color: #fff;
+    margin-left: 5px;
+}
+
+.button.button-danger:hover {
+    background-color: #bc2a2b;
+    border-color: #a30000;
+    color: #fff;
+}
+
+.notice-success {
+    border-left-color: #46b450;
+}
+
+.notice-warning {
+    border-left-color: #ffba00;
+}
+
+.notice-error {
+    border-left-color: #dc3232;
+}
+
+table.widefat td.success {
+    color: green;
+    font-weight: bold;
+}
+
+table.widefat td.failed {
+    color: red;
+    font-weight: bold;
+}
+
+input[type="submit"],
+button.button {
+    margin-right: 5px;
+}
+
+.nav-tab-wrapper {
+    margin-top: 20px;
+}
+.nav-tab {
+    font-size: 15px;
+    padding: 8px 14px;
+}
+
