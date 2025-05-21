@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>插件授权管理 - 开发文档</title>
+<style>
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height:1.6; padding: 20px; background:#f9f9f9; }
+  h1, h2, h3 { color: #2c3e50; }
+  pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+  code { font-family: Consolas, Monaco, monospace; }
+  table { border-collapse: collapse; width: 100%; max-width: 900px; margin-bottom: 20px; }
+  th, td { border: 1px solid #ddd; padding: 8px; }
+  th { background-color: #f0f0f0; text-align: left; }
+  .section { margin-bottom: 40px; }
+</style>
+</head>
+<body>
+
+<h1>插件授权管理系统开发文档</h1>
+<p>本文档详细介绍了用于管理码铃薯作者插件授权激活的PHP代码实现。方便开发者理解和维护授权相关功能。</p>
+
+<div class="section">
+  <h2>1. 获取所有码铃薯插件</h2>
+  <p>函数 <code>get_all_mdl_plugins()</code> 会遍历WordPress已安装插件，筛选作者为“码铃薯”的插件，返回插件ID和名称列表。</p>
+  <pre><code>&lt;?php
+function get_all_mdl_plugins() {
+    require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    $all_plugins = get_plugins();
+    $plugin_list = [];
+
+    foreach ($all_plugins as $plugin_path =&gt; $plugin_data) {
+        if (isset($plugin_data['Author']) &amp;&amp; $plugin_data['Author'] === '码铃薯') {
+            $plugin_slug = dirname($plugin_path);
+            $plugin_list[$plugin_slug] = $plugin_data['Name'];
+        }
+    }
+    return $plugin_list;
+}
+?&gt;</code></pre>
+</div>
+
+<div class="section">
+  <h2>2. 后台菜单添加</h2>
+  <p>利用 <code>add_action('admin_menu')</code> 添加一个插件授权管理页面菜单项，菜单标题“插件授权管理”，页面标题“插件授权激活”。</p>
+  <pre><code>add_action('admin_menu', function() {
+    add_options_page('插件授权激活', '插件授权管理', 'manage_options', 'mdl-plugin-license', function() {
+        mdl_plugin_license_page();
+    });
+});</code></pre>
+</div>
+
+<div class="section">
+  <h2>3. 授权管理页面内容</h2>
+  <p>函数 <code>mdl_plugin_license_page()</code> 渲染管理页面，列出所有插件及其授权码输入框，显示绑定域名和授权状态，并用AJAX实现保存授权码。</p>
+  <pre><code>function mdl_plugin_license_page() {
+    if (!current_user_can('manage_options')) return;
+
+    $plugins = get_all_mdl_plugins();
+    $all_licenses = get_option('my_plugin_licenses', []);
+    $current_domain = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']);
+
+    ?&gt;
+    &lt;div class="wrap"&gt;
+        &lt;h1&gt;插件授权激活 - 码铃薯所有插件&lt;/h1&gt;
+        &lt;div id="mdl-plugin-notice"&gt;&lt;/div&gt;
+        &lt;form id="mdl-plugin-license-form" method="post" action=""&gt;
+            &lt;?php wp_nonce_field('mdl_plugin_license_action', 'mdl_plugin_license_nonce'); ?&gt;
+            &lt;table class="form-table" style="max-width:600px;"&gt;
+                &lt;thead&gt;
+                    &lt;tr&gt;
+                        &lt;th style="width:180px;"&gt;插件名称&lt;/th&gt;
+                        &lt;th style="width:300px;"&gt;授权码&lt;/th&gt;
+                        &lt;th&gt;操作&lt;/th&gt;
+                    &lt;/tr&gt;
+                &lt;/thead&gt;
+                &lt;tbody&gt;
+                &lt;?php foreach ($plugins as $plugin_id =&gt; $plugin_name): 
+                    $license_data = $all_licenses[$plugin_id] ?? ['license_key' =&gt; '', 'domain' =&gt; ''];
+                    $license_key = $license_data['license_key'] ?? '';
+                    $bound_domain = !empty($license_data['domain']) ? $license_data['domain'] : $current_domain;
+
+                    $is_authorized = false;
+                    if (function_exists('my_plugin_check_pro_license')) {
+                        $is_authorized = my_plugin_check_pro_license($plugin_id);
+                    }
+                    $status_text = $is_authorized ? '✅ 已授权' : '❌ 未授权';
+                    $status_color = $is_authorized ? 'green' : 'red';
+                ?&gt;
+                    &lt;tr&gt;
+                        &lt;td&gt;&lt;strong&gt;&lt;?php echo esc_html($plugin_name); ?&gt;&lt;/strong&gt;&lt;/td&gt;
+                        &lt;td&gt;
+                            &lt;input type="text" name="license_keys[&lt;?php echo esc_attr($plugin_id); ?&gt;]" value="&lt;?php echo esc_attr($license_key); ?&gt;" style="width: 100%;" required&gt;
+                            &lt;br&gt;
+                            &lt;small&gt;
+                                已绑定域名：&lt;code&gt;&lt;?php echo esc_html($bound_domain); ?&gt;&lt;/code&gt;&lt;br&gt;
+                                授权状态：&lt;span style="color: &lt;?php echo $status_color; ?&gt;"&gt;&lt;?php echo $status_text; ?&gt;&lt;/span&gt;
+                            &lt;/small&gt;
+                        &lt;/td&gt;
+                        &lt;td&gt;
+                            &lt;button type="submit" name="generate_license" value="&lt;?php echo esc_attr($plugin_id); ?&gt;" class="button"&gt;保存授权&lt;/button&gt;
+                        &lt;/td&gt;
+                    &lt;/tr&gt;
+                &lt;?php endforeach; ?&gt;
+                &lt;/tbody&gt;
+            &lt;/table&gt;
+        &lt;/form&gt;
+    &lt;/div&gt;
+
+    &lt;script&gt;
+    (function($){
+        $('#mdl-plugin-license-form').on('submit', function(e){
+            e.preventDefault();
+
+            var $btn = $(document.activeElement);
+            var pluginId = $btn.val();
+            var licenseKey = $('input[name="license_keys[' + pluginId + ']"]').val();
+            var nonce = $('input[name="mdl_plugin_license_nonce"]').val();
+
+            $('#mdl-plugin-notice').html('');
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'mdl_plugin_save_license',
+                    license_key: licenseKey,
+                    plugin_id: pluginId,
+                    _wpnonce: nonce
+                },
+                success: function(response) {
+                    if(response.success){
+                        if (response.data.redirect) {
+                            window.location.href = response.data.redirect;
+                        } else {
+                            location.reload();
+                        }
+                    } else {
+                        $('#mdl-plugin-notice').html('&lt;div class="notice notice-error"&gt;&lt;p&gt;' + response.data.message + '&lt;/p&gt;&lt;/div&gt;');
+                    }
+                },
+                error: function(){
+                    $('#mdl-plugin-notice').html('&lt;div class="notice notice-error"&gt;&lt;p&gt;请求失败，请稍后重试。&lt;/p&gt;&lt;/div&gt;');
+                }
+            });
+        });
+    })(jQuery);
+    &lt;/script&gt;
+    &lt;?php
+}</code></pre>
+</div>
+
+<div class="section">
+  <h2>4. AJAX保存授权码处理</h2>
+  <p>通过AJAX接口 <code>mdl_plugin_save_license_callback()</code> 验证安全、调用远程接口校验授权码，并保存到数据库。</p>
+  <pre><code>add_action('wp_ajax_mdl_plugin_save_license', function() {
+    $plugin_id = sanitize_text_field($_POST['plugin_id'] ?? '');
+    mdl_plugin_save_license_callback($plugin_id);
+});
+
+function mdl_plugin_save_license_callback($plugin_id) {
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' =&gt; '无权限操作']);
+    }
+
+    if (empty($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], 'mdl_plugin_license_action')) {
+        wp_send_json_error(['message' =&gt; '安全验证失败，请刷新页面后重试']);
+    }
+
+    if (empty($plugin_id)) {
+        wp_send_json_error(['message' =&gt; '插件ID不能为空']);
+    }
+
+    $license_key = sanitize_text_field($_POST['license_key'] ?? '');
+    if (empty($license_key)) {
+        wp_send_json_error(['message' =&gt; '授权码不能为空']);
+    }
+
+    $current_domain = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']);
+
+    $response = wp_remote_post('https://www.tudoucode.cn/wp-json/tudoucode-license/v1/verify', [
+        'body' =&gt; json_encode([
+            'license_key' =&gt; $license_key,
+            'domain' =&gt; $current_domain,
+            'plugin_id' =&gt; $plugin_id,
+        ]),
+        'headers' =&gt; ['Content-Type' =&gt; 'application/json'],
+        'timeout' =&gt; 10,
+    ]);
+
+    if (is_wp_error($response)) {
+        wp_send_json_error(['message' =&gt; '无法连接授权服务器，请稍后重试']);
+    }
+
+    $code = wp_remote_retrieve_response_code($response);
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body, true);
+
+    if ($code === 200 && !empty($data['success'])) {
+        $all_licenses = get_option('my_plugin_licenses', []);
+        $all_licenses[$plugin_id] = [
+            'license_key' =&gt; $license_key,
+            'domain' =&gt; $current_domain,
+        ];
+        update_option('my_plugin_licenses', $all_licenses);
+
+        wp_send_json_success([
+            'message' =&gt; '授权验证并绑定域名成功！插件Pro功能已激活。',
+            'domain' =&gt; $current_domain,
+            'redirect' =&gt; admin_url('options-general.php?page=mdl-plugin-license&amp;mdl_license_success=1'),
+        ]);
+    } else {
+        $msg = $data['message'] ?? '未知错误';
+        wp_send_json_error(['message' =&gt; '授权验证失败：' . $msg . '。请前往 &lt;a href="https://www.tudoucode.cn/user" target="_blank"&gt;授权管理页面&lt;/a&gt; 获取有效授权码。']);
+    }
+}
+</code></pre>
+</div>
+
+<div class="section">
+  <h2>5. 授权检测函数</h2>
+  <p>函数 <code>my_plugin_check_pro_license($plugin_id)</code> 用于缓存检测授权状态，减少频繁请求。</p>
+  <pre><code>function my_plugin_check_pro_license($plugin_id) {
+    $all_licenses = get_option('my_plugin_licenses', []);
+    if (!isset($all_licenses[$plugin_id])) return false;
+
+    $license_key = $all_licenses[$plugin_id]['license_key'] ?? '';
+    $domain = $all_licenses[$plugin_id]['domain'] ?? '';
+
+    if (empty($domain)) {
+        $domain = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? '');
+    }
+
+    if (empty($license_key) || empty($domain)) {
+        return false;
+    }
+
+    $cache_key = 'my_plugin_license_check_' . md5($license_key . '_' . $domain . '_' . $plugin_id);
+    $cached_result = get_transient($cache_key);
+    if ($cached_result !== false) return $cached_result;
+
+    $url = 'https://www.tudoucode.cn/wp-json/tudoucode-license/v1/verify';
+    $response = wp_remote_post($url, [
+        'body' =&gt; json_encode([
+            'license_key' =&gt; $license_key,
+            'domain' =&gt; $domain,
+            'plugin_id' =&gt; $plugin_id,
+        ]),
+        'headers' =&gt; [
+            'Content-Type' =&gt; 'application/json',
+        ],
+        'timeout' =&gt; 10,
+    ]);
+
+    if (is_wp_error($response)) return false;
+
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body, true);
+    $success = !empty($data['success']);
+
+    set_transient($cache_key, $success, 10 * MINUTE_IN_SECONDS);
+    return $success;
+}</code></pre>
+</div>
+
+<div class="section">
+  <h2>6. 后台授权提示</h2>
+  <p>后台加载时会检测未授权插件并显示警告通知，授权成功时显示成功提示。</p>
+  <pre><code>add_action('admin_init', function() {
+    if (!current_user_can('manage_options')) return;
+    if (isset($_GET['mdl_license_success']) &amp;&amp; $_GET['mdl_license_success'] === '1') {
+        set_transient('mdl_license_success_notice', true, 60);
+    }
+});
+
+add_action('admin_notices', function() {
+    if (!current_user_can('manage_options')) return;
+
+    $plugins = get_all_mdl_plugins();
+    $all_licenses = get_option('my_plugin_licenses', []);
+    $unauthorized_plugins = [];
+
+    foreach ($plugins as $plugin_id =&gt; $plugin_name) {
+        if (!my_plugin_check_pro_license($plugin_id)) {
+            $unauthorized_plugins[] = $plugin_name;
+        }
+    }
+
+    if (!empty($unauthorized_plugins)) {
+        $plugin_list = implode('、', array_map('esc_html', $unauthorized_plugins));
+        $settings_url = admin_url('options-general.php?page=mdl-plugin-license');
+        echo '&lt;div class="notice notice-error"&gt;&lt;p&gt;';
+        echo '⚠️ &lt;strong&gt;授权提示：&lt;/strong&gt;以下插件尚未授权：' . $plugin_list . '。';
+        echo '请尽快前往 &lt;a href="' . esc_url($settings_url) . '"&gt;授权管理页面&lt;/a&gt; 绑定授权码。';
+        echo '&lt;/p&gt;&lt;/div&gt;';
+    }
+
+    if (get_transient('mdl_license_success_notice')) {
+        delete_transient('mdl_license_success_notice');
+        echo '&lt;div class="notice notice-success"&gt;&lt;p&gt;🎉 授权激活成功！插件Pro功能已开启。&lt;/p&gt;&lt;/div&gt;';
+    }
+});
+</code></pre>
+</div>
+
+</body>
+</html>
