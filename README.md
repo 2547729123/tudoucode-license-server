@@ -11,6 +11,8 @@ tudoucode-license-server/
 └── README.md
 __________________________________________________________________________________________
 # 码铃薯授权中心 - 云授权服务器
+![云授权服务器端](https://github.com/user-attachments/assets/7c218368-75d1-4536-86b8-28166a9b3284)
+![插件端](https://github.com/user-attachments/assets/d3543a7c-13af-48e0-9cc0-4bd2e43b3030)
 
 ## 简介
 
