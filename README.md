@@ -2,7 +2,6 @@ tudoucode-license-server/
 ├── tudoucode-license-server.php
 ├── /admin
 │   ├── admin-license-page.php             # 原授权管理页（已函数化）
-│   └── admin-developer-doc.php            # ✅ 新增开发者指南页
 ├── /includes
 │   ├── class-license-api.php
 │   ├── class-license-manager.php
