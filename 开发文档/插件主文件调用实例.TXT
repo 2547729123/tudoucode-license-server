@@ -1,0 +1,24 @@
+<?php
+// my-plugin.php
+
+// 插件初始化代码等...
+
+// 引入授权处理文件
+require_once plugin_dir_path(__FILE__) . 'license-handler.php';
+
+// 你插件的其他代码
+
+
+功能锁使用方法
+
+	// ========== 5. Pro 功能使用示例，可全局或指定功能PRO授权！ ==========
+
+$plugin_id = basename(dirname(__FILE__)); // 插件ID，确保和主授权逻辑一致！
+
+if (my_plugin_check_pro_license($plugin_id)) {
+    // ✅ 授权成功，执行Pro功能
+    // Pro功能代码...
+} else {
+    // ❌ 未授权，限制功能
+    // 只限制功能，不再重复提示
+}
