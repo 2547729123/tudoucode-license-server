@@ -1,0 +1,49 @@
+// ==========功能锁 —— Pro 功能使用示例，可全局或指定功能PRO授权！ =========
+
+// --- 1. 文件完整性校验 ---
+// 完整性校验代码（放主插件主文件开头，校验主文件和 includes 下所有文件，也在includes/license-handler.php做了备份引用！）
+require_once plugin_dir_path(__FILE__) . 'includes/file-integrity-check.php';
+
+// --- 2. 引入授权处理文件 ---
+//【注意：先引入后校验再功能锁，有逻辑先后顺序否则报错】
+require_once plugin_dir_path(__FILE__) . 'includes/license-handler.php';
+
+// --- 3. 引入授权校验 ---
+// 插件ID，确保和主授权逻辑一致！
+$plugin_id = basename(dirname(__FILE__)); 
+
+// --- 4. 引入功能锁：一个健壮插件应该具备的“前端 UI 锁 + 后端底层锁 双重锁机制”！
+//实在嫌麻烦，就让GPT给你上锁，想全局就全局想局部就局部，想颗粒化每个功能上锁就每个功能上锁！还可以深度耦合！
+//  全局锁——后端底层锁
+if (my_plugin_check_pro_license($plugin_id)) {
+    // ✅ 授权成功，执行Pro功能
+    // Pro功能代码...
+} else {
+    // ❌ 未授权，限制功能
+    // 只限制功能，不再重复提示
+}
+
+//  指定PRO功能锁（前端 UI 锁）
+你只需要将：
+
+<?php echo mdl_pro_attr($plugin_id); ?> //   灰化 + 跳转授权页
+<?php echo mdl_pro_attr($plugin_id, 'text'); ?>//  显示说明文字「🚀 Pro功能，点击激活」
+
+加在（不回家也没事，找ChatGPT!）：
+    <input> 标签内（作为属性）
+    <div> 标签上（包裹整个功能模块）
+    <button>、<select> 等任何交互元素
+即可实现对应功能锁逻辑，未授权时 UI 禁用并跳转授权页面，非常丝滑。
+给你个示例
+<input ... <?php echo mdl_pro_attr($plugin_id); ?> />
+功能按钮
+<?php echo mdl_pro_attr($plugin_id, 'text'); ?>
+
+
+
+
+PS:注意事项
+
+1、插件作者必填！码铃薯，如果不想让免费的插件后台弹窗授权，请修改码铃薯为其他名称比如码铃薯free！
+一块使用就行，也可以使用GPT进行内置主插件处理（属于定制了）
+2、插件的主文件和includes文件夹内的全部文件都会哈希加密处理（这个是哈希脚本generate-hash.php内定的，可修改）；所以务必看下.hash使用说明【开发必读】！
